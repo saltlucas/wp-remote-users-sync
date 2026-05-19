@@ -565,8 +565,9 @@ class Wprus_Settings {
 
 			$normalized_site_path = untrailingslashit( $site_path );
 			$normalized_url_path  = untrailingslashit( $url_path );
+			$path_match           = ( '' === $normalized_site_path ) || ( 0 === strpos( $normalized_url_path, $normalized_site_path ) );
 
-			if ( 0 === strpos( $normalized_url_path, $normalized_site_path ) ) {
+			if ( $path_match ) {
 				$len = strlen( $normalized_site_path );
 
 				if ( $len >= $best_match_len ) {
