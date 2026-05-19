@@ -7,6 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Wprus_Settings {
 	const DEFAULT_TOKEN_EXPIRY_LENGTH = HOUR_IN_SECONDS / 2;
 	const DEFAULT_MIN_LOG             = 100;
+	const DEFAULT_MAX_META_KEYS       = 250;
 
 	protected static $actions;
 	protected static $endpoints;
@@ -17,6 +18,7 @@ class Wprus_Settings {
 	protected $hmac_key;
 	protected $sites;
 	protected $error;
+	protected $missing_config_fields = array();
 
 	public function __construct( $endpoints = null, $init_hooks = false ) {
 
@@ -100,12 +102,15 @@ class Wprus_Settings {
 		$encryption = self::get_option( 'encryption' );
 
 		if ( empty( $encryption ) || empty( $encryption['hmac_key'] ) || empty( $encryption['aes_key'] ) ) {
-			$error  = '<ul>';
-			$error .= ( empty( $this->aes_key ) ) ? '<li>' . __( 'Missing Encryption Key', 'wprus' ) . '</li>' : '';
-			$error .= ( empty( $this->hmac_key ) ) ? '<li>' . __( 'Missing Authentication Key', 'wprus' ) . '</li>' : '';
-			$error .= '</ul>';
+			$this->missing_config_fields = array();
 
-			$this->error = $error;
+			if ( empty( $encryption['aes_key'] ) ) {
+				$this->missing_config_fields[] = 'aes_key';
+			}
+
+			if ( empty( $encryption['hmac_key'] ) ) {
+				$this->missing_config_fields[] = 'hmac_key';
+			}
 
 			add_action( 'admin_notices', array( $this, 'missing_config' ) );
 
@@ -120,8 +125,23 @@ class Wprus_Settings {
 		$link    = ' <a href="' . $href . '">' . __( 'Edit configuration', 'wprus' ) . '</a>';
 		$class   = 'notice notice-error is-dismissible';
 		$message = __( 'WP Remote Users Sync is not ready. ', 'wprus' );
+		$error   = '';
 
-		printf( '<div class="%1$s"><p>%2$s</p></div>', $class, $message . $link . $this->error ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		if ( ! empty( $this->missing_config_fields ) ) {
+			$error = '<ul>';
+
+			if ( in_array( 'aes_key', $this->missing_config_fields, true ) ) {
+				$error .= '<li>' . __( 'Missing Encryption Key', 'wprus' ) . '</li>';
+			}
+
+			if ( in_array( 'hmac_key', $this->missing_config_fields, true ) ) {
+				$error .= '<li>' . __( 'Missing Authentication Key', 'wprus' ) . '</li>';
+			}
+
+			$error .= '</ul>';
+		}
+
+		printf( '<div class="%1$s"><p>%2$s</p></div>', $class, $message . $link . $error ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	public function plugin_options_menu_main() {
@@ -795,6 +815,7 @@ class Wprus_Settings {
 		if ( ! $meta_keys ) {
 			$exclude      = $this->get_excluded_meta();
 			$exclude_like = $this->get_excluded_meta_like();
+			$max_meta_keys = absint( apply_filters( 'wprus_settings_max_meta_keys', self::DEFAULT_MAX_META_KEYS ) );
 			$table        = Wprus::get_table( 'usermeta' );
 
 			$sql = "
@@ -803,10 +824,22 @@ class Wprus_Settings {
 				WHERE m.meta_key NOT IN (" . implode( ',', array_fill( 0, count( $exclude ), '%s' ) ) . ')
 				AND m.meta_key NOT LIKE
 				' . implode( ' AND m.meta_key NOT LIKE ', array_fill( 0, count( $exclude_like ), '%s' ) ) . '
-				ORDER BY m.meta_key ASC
+				ORDER BY m.meta_key ASC';
+
+			if ( $max_meta_keys > 0 ) {
+				$sql .= '
+				LIMIT %d';
+			}
+
+			$sql .= '
 			;';
 
-			$params    = array_merge( $exclude, $exclude_like );
+			$params = array_merge( $exclude, $exclude_like );
+
+			if ( $max_meta_keys > 0 ) {
+				$params[] = $max_meta_keys;
+			}
+
 			$query     = $wpdb->prepare( $sql, $params ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			$meta_keys = $wpdb->get_col( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
