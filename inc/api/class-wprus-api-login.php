@@ -128,6 +128,11 @@ class Wprus_Api_Login extends Wprus_Api_Abstract {
 
 	public function notify_remote( $logged_in_cookie, $expire, $expiration, $user_id, $scheme, $token ) {
 		$user                = get_user_by( 'ID', $user_id );
+
+		if ( ! $user ) {
+			return;
+		}
+
 		$this->async_user_id = $user->ID;
 		$sites               = $this->settings->get_sites( $this->endpoint, 'outgoing' );
 
