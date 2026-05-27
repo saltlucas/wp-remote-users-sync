@@ -144,6 +144,16 @@ class Wprus_Api_Logout extends Wprus_Api_Abstract {
 
 	public function notify_remote() {
 
+		if ( $this->is_login_reauth_request() ) {
+			Wprus_Logger::log(
+				__( 'Logout action skipped - login page reauth request should not trigger remote logout notifications.', 'wprus' ),
+				'info',
+				'db_log'
+			);
+
+			return;
+		}
+
 		if ( ! is_user_logged_in() ) {
 
 			return;
@@ -235,5 +245,19 @@ class Wprus_Api_Logout extends Wprus_Api_Abstract {
 		}
 
 		return wp_get_current_user();
+	}
+
+	protected function is_login_reauth_request() {
+		if ( ! doing_action( 'clear_auth_cookie' ) ) {
+			return false;
+		}
+
+		if ( empty( $_REQUEST['reauth'] ) ) {
+			return false;
+		}
+
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+
+		return false !== strpos( $request_uri, 'wp-login.php' );
 	}
 }
