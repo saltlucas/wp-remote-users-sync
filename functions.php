@@ -95,6 +95,43 @@ if ( ! function_exists( 'wprus_get_admin_template' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wprus_maybe_redirect_logged_in_from_login' ) ) {
+	function wprus_maybe_redirect_logged_in_from_login() {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET';
+
+		if ( 'GET' !== $request_method ) {
+			return;
+		}
+
+		$action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : 'login';
+
+		if ( in_array( $action, array( 'logout', 'lostpassword', 'retrievepassword', 'rp', 'resetpass', 'postpass' ), true ) ) {
+			return;
+		}
+
+		if ( isset( $_REQUEST['reauth'] ) || isset( $_REQUEST['interim-login'] ) ) {
+			return;
+		}
+
+		$redirect_to = '';
+
+		if ( isset( $_REQUEST['redirect_to'] ) ) {
+			$redirect_to = wp_validate_redirect( wp_unslash( $_REQUEST['redirect_to'] ), '' );
+		}
+
+		if ( '' === $redirect_to ) {
+			$redirect_to = admin_url();
+		}
+
+		wp_safe_redirect( $redirect_to );
+		exit;
+	}
+}
+
 if ( ! function_exists( 'wprus_set_auth_cookie' ) ) {
 
 	function wprus_set_auth_cookie( $user_id, $remember = false, $secure = '', $token = '' ) {

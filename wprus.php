@@ -29,6 +29,8 @@ if ( ! defined( 'WPRUS_PLUGIN_BASEFILE' ) ) {
 require_once WPRUS_PLUGIN_PATH . 'functions.php';
 require_once WPRUS_PLUGIN_PATH . 'inc/class-wprus.php';
 
+add_action( 'login_init', 'wprus_maybe_redirect_logged_in_from_login', 1, 0 );
+
 register_activation_hook( __FILE__, array( 'Wprus', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'Wprus', 'deactivate' ) );
 register_uninstall_hook( __FILE__, array( 'Wprus', 'uninstall' ) );
